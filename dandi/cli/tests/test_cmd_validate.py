@@ -6,7 +6,14 @@ import pytest
 
 from ..cmd_validate import _process_issues, validate
 from ...tests.fixtures import BIDS_ERROR_TESTDATA_SELECTION
-from ...validate_types import Origin, Scope, Severity, ValidationResult, Validator
+from ...validate_types import (
+    Origin,
+    Scope,
+    Severity,
+    Standard,
+    ValidationResult,
+    Validator,
+)
 
 
 @pytest.mark.parametrize("dataset", BIDS_ERROR_TESTDATA_SELECTION)

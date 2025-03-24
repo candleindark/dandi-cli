@@ -54,6 +54,26 @@ from ..validate_types import (
 lgr = get_logger()
 
 
+def get_zarr_storage_specification_version(data: Any) -> str:
+    """
+    Get the Zarr storage specification version from a Zarr data object
+
+    Parameters
+    ----------
+    data : zarr.core.Array or zarr.hierarchy.Group
+        The Zarr data object from which to extract the storage specification version
+    """
+    import zarr  # Delay heavy import
+
+    if isinstance(data, zarr.Group):
+        meta = json.loads(data.store.get(".zgroup"))
+    elif isinstance(data, zarr.Array):
+        meta = json.loads(data.store.get(".zarray"))
+    else:
+        raise TypeError("`data` must be a `zarr.core.Array` or `zarr.hierarchy.Group`")
+    return str(meta["zarr_format"])
+
+
 @dataclass
 class LocalZarrEntry(BasePath):
     """A file or directory within a `ZarrAsset`"""
@@ -245,11 +265,10 @@ class ZarrAsset(LocalDirectoryAsset[LocalZarrEntry]):
             validator=Validator.dandi_zarr,
             validator_version=__version__,
             standard=Standard.ZARR,
-            # TODO: standard_version=...,
         )
-        # if data:
-        # TODO: figure out how to assign standard_version
-        # origin.standard_version = data.???
+        if data is not None:
+            origin.standard_version = get_zarr_storage_specification_version(data)
+
         if isinstance(data, zarr.Group) and not data:
             errors.append(
                 ValidationResult(
