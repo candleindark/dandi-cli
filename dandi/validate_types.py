@@ -4,7 +4,7 @@ from enum import Enum, IntEnum, auto, unique
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from dandi.utils import StrEnum
 
@@ -95,7 +95,7 @@ class ValidationResult(BaseModel):
 
     scope: Scope
 
-    origin_result: Any | None = None
+    origin_result: Any | None = Field(None, exclude=True)
     """
     The representation of the validation result produced by the used validator,
     `self.origin.validator`, unchanged
