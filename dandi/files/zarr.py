@@ -240,7 +240,6 @@ class ZarrAsset(LocalDirectoryAsset[LocalZarrEntry]):
             validator=Validator.zarr,
             validator_version=zarr.__version__,
             standard=Standard.ZARR,
-            # TODO: standard_version=...,
         )
 
         try:
