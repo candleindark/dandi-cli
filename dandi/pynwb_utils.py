@@ -31,6 +31,7 @@ from .misctypes import Readable
 from .utils import get_module_version, is_url
 from .validate_types import (
     Origin,
+    OriginType,
     Scope,
     Severity,
     Standard,
@@ -373,6 +374,7 @@ def validate(path: str | Path, devel_debug: bool = False) -> list[ValidationResu
             errors.append(
                 ValidationResult(
                     origin=Origin(
+                        type=OriginType.VALIDATION,
                         validator=Validator.pynwb,
                         validator_version=pynwb.__version__,
                         standard=Standard.NWB,
@@ -393,6 +395,7 @@ def validate(path: str | Path, devel_debug: bool = False) -> list[ValidationResu
         errors.append(
             ValidationResult(
                 origin=Origin(
+                    type=OriginType.INTERNAL,
                     validator=Validator.pynwb,
                     validator_version=pynwb.__version__,
                 ),
@@ -428,6 +431,7 @@ def validate(path: str | Path, devel_debug: bool = False) -> list[ValidationResu
                         origin=Origin(
                             validator=Validator.pynwb,
                             validator_version=pynwb.__version__,
+                            type=OriginType.VALIDATION,
                             standard=Standard.NWB,
                         ),
                         severity=Severity.ERROR,

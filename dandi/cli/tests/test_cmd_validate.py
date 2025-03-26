@@ -6,7 +6,14 @@ import pytest
 
 from ..cmd_validate import _process_issues, validate
 from ...tests.fixtures import BIDS_ERROR_TESTDATA_SELECTION
-from ...validate_types import Origin, Scope, Severity, ValidationResult, Validator
+from ...validate_types import (
+    Origin,
+    OriginType,
+    Scope,
+    Severity,
+    ValidationResult,
+    Validator,
+)
 
 
 @pytest.mark.parametrize("dataset", BIDS_ERROR_TESTDATA_SELECTION)
@@ -72,6 +79,7 @@ def test_process_issues(capsys):
         ValidationResult(
             id="NWBI.check_data_orientation",
             origin=Origin(
+                type=OriginType.VALIDATION,
                 validator=Validator.nwbinspector,
                 validator_version="",
             ),
@@ -83,6 +91,7 @@ def test_process_issues(capsys):
         ValidationResult(
             id="NWBI.check_data_orientation",
             origin=Origin(
+                type=OriginType.VALIDATION,
                 validator=Validator.nwbinspector,
                 validator_version="",
             ),
@@ -94,6 +103,7 @@ def test_process_issues(capsys):
         ValidationResult(
             id="NWBI.check_missing_unit",
             origin=Origin(
+                type=OriginType.VALIDATION,
                 validator=Validator.nwbinspector,
                 validator_version="",
             ),

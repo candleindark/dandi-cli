@@ -42,7 +42,25 @@ class Validator(StrEnum):
     zarr = auto()
 
 
+class OriginType(StrEnum):
+    """Types of validation result origins"""
+
+    INTERNAL = auto()
+    """
+    Validation result is originated from the validator but not necessarily relating
+    to validation of the data"""
+
+    VALIDATION = auto()
+    """Validation result is originated from validation of the data"""
+
+
 class Origin(BaseModel):
+    """
+    Origin of the validation result
+    """
+
+    type: OriginType
+
     validator: Validator
     """The validator conducting the validation"""
 

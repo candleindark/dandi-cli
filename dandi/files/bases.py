@@ -30,6 +30,7 @@ from dandi.misctypes import DUMMY_DANDI_ETAG, Digest, LocalReadableFile, P
 from dandi.utils import post_upload_size_check, pre_upload_size_check, yaml_load
 from dandi.validate_types import (
     Origin,
+    OriginType,
     Scope,
     Severity,
     Standard,
@@ -210,6 +211,7 @@ class LocalAsset(DandiFile):
             return [
                 ValidationResult(
                     origin=Origin(
+                        type=OriginType.INTERNAL,
                         validator=Validator.dandi,
                         validator_version=dandi.__version__,
                     ),
@@ -536,6 +538,7 @@ class NWBAsset(LocalFileAsset):
             # make sure that we have some basic metadata fields we require
             try:
                 origin = Origin(
+                    type=OriginType.VALIDATION,
                     validator=Validator.nwbinspector,
                     validator_version=str(_get_nwb_inspector_version()),
                 )
@@ -709,6 +712,7 @@ def _check_required_fields(
                         validator_version=dandischema.__version__,  # type: ignore[attr-defined]
                         standard=Standard.DANDI_SCHEMA,
                         standard_version=DANDI_SCHEMA_VERSION,
+                        type=OriginType.VALIDATION,
                     ),
                     severity=Severity.ERROR,
                     id="dandischema.requred_field",
@@ -726,6 +730,7 @@ def _check_required_fields(
                         validator_version=dandischema.__version__,  # type: ignore[attr-defined]
                         standard=Standard.DANDI_SCHEMA,
                         standard_version=DANDI_SCHEMA_VERSION,
+                        type=OriginType.VALIDATION,
                     ),
                     severity=Severity.WARNING,
                     id="dandischema.placeholder_value",
@@ -808,6 +813,7 @@ def _pydantic_errors_to_validation_results(
         out.append(
             ValidationResult(
                 origin=Origin(
+                    type=OriginType.VALIDATION,
                     validator=Validator.dandischema,
                     validator_version=dandischema.__version__,  # type: ignore[attr-defined]
                     standard=Standard.DANDI_SCHEMA,

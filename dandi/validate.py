@@ -10,6 +10,7 @@ from .files import find_dandi_files
 from .utils import find_parent_directory_containing
 from .validate_types import (
     Origin,
+    OriginType,
     Scope,
     Severity,
     Standard,
@@ -54,6 +55,7 @@ def validate_bids(
     validation_result = validate_bids_(paths, exclude_files=["dandiset.yaml"])
     our_validation_result = []
     origin = Origin(
+        type=OriginType.VALIDATION,
         validator=Validator.bidsschematools,
         validator_version=bidsschematools.__version__,
         standard=Standard.BIDS,
@@ -161,6 +163,7 @@ def validate(
             yield ValidationResult(
                 id="DANDI.NO_DANDISET_FOUND",
                 origin=Origin(
+                    type=OriginType.VALIDATION,
                     validator=Validator.dandi,
                     validator_version=__version__,
                     standard=Standard.DANDI_LAYOUT,

@@ -37,6 +37,7 @@ from .utils import (
 )
 from .validate_types import (
     Origin,
+    OriginType,
     Scope,
     Severity,
     Standard,
@@ -1127,6 +1128,7 @@ def validate_organized_path(
             ValidationResult(
                 id="DANDI.NON_DANDI_FILENAME",
                 origin=Origin(
+                    type=OriginType.VALIDATION,
                     validator=Validator.dandi,
                     validator_version=__version__,
                     standard=Standard.DANDI_LAYOUT,
@@ -1147,6 +1149,7 @@ def validate_organized_path(
             ValidationResult(
                 id="DANDI.NON_DANDI_FOLDERNAME",
                 origin=Origin(
+                    type=OriginType.VALIDATION,
                     validator=Validator.dandi,
                     validator_version=__version__,
                     standard=Standard.DANDI_LAYOUT,
@@ -1167,6 +1170,7 @@ def validate_organized_path(
                 ValidationResult(
                     id="DANDI.METADATA_MISMATCH_SUBJECT",
                     origin=Origin(
+                        type=OriginType.VALIDATION,
                         validator=Validator.dandi,
                         validator_version=__version__,
                         standard=Standard.DANDI_LAYOUT,

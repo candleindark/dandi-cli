@@ -9,6 +9,7 @@ from ..consts import dandiset_metadata_file
 from ..validate import validate
 from ..validate_types import (
     Origin,
+    OriginType,
     Scope,
     Severity,
     Standard,
@@ -39,6 +40,7 @@ def test_validate_empty(tmp_path: Path) -> None:
         ValidationResult(
             id="DANDI.NO_DANDISET_FOUND",
             origin=Origin(
+                type=OriginType.VALIDATION,
                 validator=Validator.dandi,
                 validator_version=__version__,
                 standard=Standard.DANDI_LAYOUT,
