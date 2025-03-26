@@ -395,7 +395,6 @@ def validate(path: str | Path, devel_debug: bool = False) -> list[ValidationResu
                 origin=Origin(
                     validator=Validator.pynwb,
                     validator_version=pynwb.__version__,
-                    standard=Standard.NWB,
                 ),
                 severity=Severity.ERROR,
                 id="pynwb.GENERIC",
