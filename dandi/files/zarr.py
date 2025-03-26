@@ -266,7 +266,6 @@ class ZarrAsset(LocalDirectoryAsset[LocalZarrEntry]):
             type=OriginType.VALIDATION,
             validator=Validator.dandi_zarr,
             validator_version=__version__,
-            standard=Standard.ZARR,
         )
         if data is not None:
             origin.standard_version = get_zarr_format_version(data)
