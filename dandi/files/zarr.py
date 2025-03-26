@@ -54,7 +54,7 @@ from ..validate_types import (
 lgr = get_logger()
 
 
-def get_zarr_storage_specification_version(data: Any) -> str:
+def get_zarr_format_version(data: Any) -> str:
     """
     Get the Zarr storage specification version from a Zarr data object
 
@@ -267,7 +267,7 @@ class ZarrAsset(LocalDirectoryAsset[LocalZarrEntry]):
             standard=Standard.ZARR,
         )
         if data is not None:
-            origin.standard_version = get_zarr_storage_specification_version(data)
+            origin.standard_version = get_zarr_format_version(data)
 
         if isinstance(data, zarr.Group) and not data:
             errors.append(
