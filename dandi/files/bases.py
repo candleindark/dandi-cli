@@ -708,11 +708,9 @@ def _check_required_fields(
             errors.append(
                 ValidationResult(
                     origin=Origin(
-                        validator=Validator.dandischema,
-                        validator_version=dandischema.__version__,  # type: ignore[attr-defined]
-                        standard=Standard.DANDI_SCHEMA,
-                        standard_version=DANDI_SCHEMA_VERSION,
                         type=OriginType.VALIDATION,
+                        validator=Validator.dandi,
+                        validator_version=dandi.__version__,
                     ),
                     severity=Severity.ERROR,
                     id="dandischema.requred_field",
@@ -726,11 +724,9 @@ def _check_required_fields(
             errors.append(
                 ValidationResult(
                     origin=Origin(
-                        validator=Validator.dandischema,
-                        validator_version=dandischema.__version__,  # type: ignore[attr-defined]
-                        standard=Standard.DANDI_SCHEMA,
-                        standard_version=DANDI_SCHEMA_VERSION,
                         type=OriginType.VALIDATION,
+                        validator=Validator.dandi,
+                        validator_version=dandi.__version__,
                     ),
                     severity=Severity.WARNING,
                     id="dandischema.placeholder_value",

@@ -429,9 +429,9 @@ def validate(path: str | Path, devel_debug: bool = False) -> list[ValidationResu
                 errors.append(
                     ValidationResult(
                         origin=Origin(
-                            validator=Validator.pynwb,
-                            validator_version=pynwb.__version__,
                             type=OriginType.VALIDATION,
+                            validator=Validator.dandi,
+                            validator_version=__version__,
                             standard=Standard.NWB,
                         ),
                         severity=Severity.ERROR,
