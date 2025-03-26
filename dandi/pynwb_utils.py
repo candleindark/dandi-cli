@@ -432,7 +432,6 @@ def validate(path: str | Path, devel_debug: bool = False) -> list[ValidationResu
                             type=OriginType.VALIDATION,
                             validator=Validator.dandi,
                             validator_version=__version__,
-                            standard=Standard.NWB,
                         ),
                         severity=Severity.ERROR,
                         id="pynwb.GENERIC",
