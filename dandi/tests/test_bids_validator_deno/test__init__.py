@@ -350,105 +350,12 @@ class Test_BidsValidate:
             assert e.stderr == stderr
 
 
-@pytest.fixture
-def clear_get_version_cache():
-    # Ensure the cache is cleared before each test run
-    get_version.cache_clear()
-    yield
-
-
-@pytest.mark.usefixtures("clear_get_version_cache")
-class TestGetVersion:
-    def test_real(self):
-        """
-        Test fetching the version number from the real bids-validator-deno command
-        """
-        result = get_version()
-        assert isinstance(result, str)
-        assert result != ""
-
-    @pytest.mark.parametrize("returncode", [1, -2, 127])
-    def test_fail_exit_code(self, returncode):
-        """
-        Test the case where `bids-validator-deno --version` has a non-zero exit code
-        """
-        cmd = [CMD, "--version"]
-        stdout = "Some output"
-        stderr = "Some error"
-        with patch("dandi.bids_validator_deno._invoke_validator") as mock_invoke:
-            # Simulate a CompletedProcess with a non-zero return code
-            mock_invoke.return_value = CompletedProcess(
-                args=cmd,
-                returncode=returncode,
-                stdout=stdout,
-                stderr=stderr,
-            )
-
-            # We expect a `ValidatorError`
-            with pytest.raises(ValidatorError) as excinfo:
-                get_version()
-
-            e = excinfo.value
-
-            assert e.cmd == cmd
-            assert e.returncode == returncode
-            assert e.stdout == stdout
-            assert e.stderr == stderr
-
-    @pytest.mark.parametrize(
-        "stdout_text, expected_version",
-        [
-            ("\x1b[1mbids-validator\x1b[22m \x1b[94m2.0.4-dev\x1b[39m\n", "2.0.4-dev"),
-            (
-                "\x1b[1m\t  bids-validator\x1b[22m \x1b[94m2.0.4-dev\x1b[39m\nhello",
-                "2.0.4-dev",
-            ),
-            (
-                "\x1b[1mbids-validator\x1b[22m \x1b[94m2.0.4-dev.g123\x1b[39m\n",
-                "2.0.4-dev.g123",
-            ),
-        ],
-    )
-    def test_version_extraction(self, stdout_text, expected_version):
-        """
-        Test the case where a version number is extracted from the output
-        of `bids-validator-deno --version` using an expected regex pattern.
-        """
-        with patch("dandi.bids_validator_deno._invoke_validator") as mock_invoke:
-            mock_invoke.return_value = CompletedProcess(
-                args=[CMD, "--version"],
-                returncode=0,
-                stdout=stdout_text,
-                stderr="",
-            )
-            # The regex should match and extract the version
-            version = get_version()
-            assert version == expected_version
-
-    @pytest.mark.parametrize(
-        "stdout_text",
-        [
-            "",  # empty output
-            "unknown 1.2.3",  # missing "bids-validator" prefix
-            "bidsvalidator 1.2.3",  # missing dash in "bids-validator"
-        ],
-    )
-    def test_failed_version_extraction(self, stdout_text):
-        """
-        Test the case where a version number can't be extracted from the output of
-        `bids-validator-deno --version` using an expected regex pattern.
-        """
-        with patch("dandi.bids_validator_deno._invoke_validator") as mock_invoke:
-            mock_invoke.return_value = CompletedProcess(
-                args=[CMD, "--version"],
-                returncode=0,
-                stdout=stdout_text,
-                stderr="",
-            )
-            # Because the regex doesn't match any of these stdout_text variants,
-            # we expect a RuntimeError about failing to extract the version.
-            with pytest.raises(RuntimeError, match="Failed to extract a version"):
-                get_version()
+def test_get_version():
+    """
+    Test the `get_version()` function
+    """
+    version = get_version()
+    assert "." in version
 
 
 @pytest.fixture

@@ -1,10 +1,10 @@
 # This file provides definitions to do BIDS validation through the deno-compiled BIDS
 # validator, https://pypi.org/project/bids-validator-deno/.
 
-from functools import cache
+from importlib.metadata import version
 from pathlib import Path
 import re
-from subprocess import CalledProcessError, CompletedProcess, TimeoutExpired, run
+from subprocess import CompletedProcess, TimeoutExpired, run
 from tempfile import TemporaryDirectory
 from typing import Optional, cast
 
@@ -23,7 +23,7 @@ from dandi.validate_types import (
     Validator,
 )
 
-CMD = "bids-validator-deno"
+DISTRIBUTION_NAME = CMD = "bids-validator-deno"
 TIMEOUT = 600.0  # 10 minutes, in seconds
 
 # ANSI SGR (Select Graphic Rendition) pattern
@@ -255,7 +255,6 @@ def _bids_validate(
     return BidsValidationResult.model_validate_json(outfile_content, strict=True)
 
 
-@cache
 def get_version() -> str:
     """
     Return the version of the deno-compiled BIDS validator
@@ -264,36 +263,8 @@ def get_version() -> str:
     -------
     str
         The version of the deno-compiled BIDS validator
-
-    Raises
-    ------
-    ValidatorError
-        If the deno-compiled BIDS validator fails in execution, and the failure is
-        not an indication of the presence of validation errors.
-    RuntimeError
-        If the version number cannot be extracted from the output of the
-        `bids-validator-deno --version` command using the expected regex pattern
     """
-    result = _invoke_validator(["--version"])
-
-    try:
-        result.check_returncode()
-    except CalledProcessError as e:
-        raise ValidatorError(e.cmd, e.returncode, e.stdout, e.stderr)
-
-    # Get the version from the stdout
-    pattern = r"bids-validator\s+(\S+)"
-    match = re.search(pattern, strip_sgr(result.stdout))
-    if match:
-        version = match.group(1)
-    else:
-        raise RuntimeError(
-            f"Failed to extract a version number from the stdout output of the "
-            f"`{' '.join(result.args)}` command, {result.stdout!r}, using the expected "
-            f"regex pattern, {pattern!r}"
-        )
-
-    return version
+    return version(DISTRIBUTION_NAME)
 
 
 def _harmonize(
