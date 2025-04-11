@@ -250,7 +250,7 @@ class Test_BidsValidate:
         recursive: bool,
         expected_conditional_ops: list[str],
         tmp_path: Path,
-    ):
+    ) -> None:
         """
         Spy on the `_invoke_validator()` call inside `_bids_validate()` and verify
         the arguments passed
