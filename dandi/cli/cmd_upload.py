@@ -105,10 +105,8 @@ def upload(
     else:
         jobs, jobs_per_file = jobs_pair
 
-    sidecar = None
     ctx = click.get_current_context()
-    if ctx.obj is not None:
-        sidecar = validation_sidecar_path(ctx.obj.logfile)
+    sidecar = validation_sidecar_path(ctx.obj.logfile) if ctx.obj is not None else None
 
     upload_(
         paths,

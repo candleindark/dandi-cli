@@ -11,7 +11,7 @@ from ..cmd_validate import (
     TruncationNotice,
     _group_results,
     _process_issues,
-    _render_human,
+    _render_text,
     _truncate_leaves,
     validate,
 )
@@ -26,6 +26,15 @@ from ...validate.types import (
     ValidationResult,
     Validator,
 )
+
+
+@pytest.fixture
+def redirected_logdir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Redirect dandi-cli log directory to tmp_path/logs and return the path."""
+    logdir = tmp_path / "logs"
+    logdir.mkdir()
+    monkeypatch.setattr("platformdirs.user_log_dir", lambda *a, **kw: str(logdir))
+    return logdir
 
 
 @pytest.mark.parametrize(
@@ -282,8 +291,8 @@ def test_validate_output_auto_format(simple2_nwb: Path, tmp_path: Path) -> None:
 
 
 @pytest.mark.ai_generated
-def test_validate_summary_human(simple2_nwb: Path) -> None:
-    """Test --summary in human format shows statistics."""
+def test_validate_summary_text(simple2_nwb: Path) -> None:
+    """Test --summary in text format shows statistics."""
     r = CliRunner().invoke(validate, ["--summary", str(simple2_nwb)])
     assert r.exit_code != 0
     assert "Validation Summary" in r.output
@@ -313,7 +322,7 @@ def test_validate_load(simple2_nwb: Path, tmp_path: Path) -> None:
 def test_validate_load_with_format(simple2_nwb: Path, tmp_path: Path) -> None:
     """Test --load combined with --format."""
     outfile = tmp_path / "results.jsonl"
-    r = CliRunner().invoke(
+    CliRunner().invoke(
         validate,
         ["-f", "json_lines", "-o", str(outfile), str(simple2_nwb)],
     )
@@ -341,7 +350,7 @@ def test_validate_load_mutual_exclusivity(simple2_nwb: Path, tmp_path: Path) -> 
     "grouping",
     ["severity", "id", "validator", "standard", "dandiset"],
 )
-def test_render_human_grouping(grouping: str, capsys: pytest.CaptureFixture) -> None:
+def test_render_text_grouping(grouping: str, capsys: pytest.CaptureFixture) -> None:
     """Test extended grouping renders section headers with counts."""
     origin = Origin(
         type=OriginType.VALIDATION,
@@ -368,7 +377,7 @@ def test_render_human_grouping(grouping: str, capsys: pytest.CaptureFixture) -> 
             dandiset_path=Path("/data/ds001"),
         ),
     ]
-    _render_human(issues, grouping=(grouping,))
+    _render_text(issues, grouping=(grouping,))
     captured = capsys.readouterr().out
 
     # Section headers with "===" must appear
@@ -390,7 +399,7 @@ def test_validate_grouping_severity_cli(simple2_nwb: Path) -> None:
 
 
 @pytest.mark.ai_generated
-def test_render_human_multilevel_grouping(capsys: pytest.CaptureFixture) -> None:
+def test_render_text_multilevel_grouping(capsys: pytest.CaptureFixture) -> None:
     """Test multi-level grouping renders nested section headers."""
     origin = Origin(
         type=OriginType.VALIDATION,
@@ -426,7 +435,7 @@ def test_render_human_multilevel_grouping(capsys: pytest.CaptureFixture) -> None
             dandiset_path=Path("/data/ds001"),
         ),
     ]
-    _render_human(issues, grouping=("severity", "id"))
+    _render_text(issues, grouping=("severity", "id"))
     captured = capsys.readouterr().out
 
     # Should have nested headers: severity then id
@@ -442,7 +451,7 @@ def test_render_human_multilevel_grouping(capsys: pytest.CaptureFixture) -> None
 
 
 @pytest.mark.ai_generated
-def test_validate_multilevel_grouping_human_cli(simple2_nwb: Path) -> None:
+def test_validate_multilevel_grouping_text_cli(simple2_nwb: Path) -> None:
     """Test -g severity -g id via CLI produces nested headers."""
     r = CliRunner().invoke(validate, ["-g", "severity", "-g", "id", str(simple2_nwb)])
     assert r.exit_code != 0
@@ -777,54 +786,36 @@ def test_truncate_leaves_unit() -> None:
 
 
 @pytest.mark.ai_generated
-def test_validate_auto_sidecar_human(
-    simple2_nwb: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Default human-format validate auto-saves sidecar next to log file."""
-    logdir = tmp_path / "logs"
-    logdir.mkdir()
-    monkeypatch.setattr("platformdirs.user_log_dir", lambda *a, **kw: str(logdir))
+def test_validate_auto_sidecar_text(simple2_nwb: Path, redirected_logdir: Path) -> None:
+    """Default text-format validate auto-saves sidecar next to log file."""
 
     r = CliRunner().invoke(main, ["validate", str(simple2_nwb)])
     assert r.exit_code == 1  # NO_DANDISET_FOUND
 
-    # Find sidecar files
-    sidecars = list(logdir.glob("*_validation.jsonl"))
-    assert len(sidecars) == 1
+    assert len(sidecars := list(redirected_logdir.glob("*_validation.jsonl"))) == 1
 
     # Verify content is loadable
-    results = load_validation_jsonl(sidecars[0])
-    assert len(results) > 0
+    assert load_validation_jsonl(sidecars[0])
 
 
 @pytest.mark.ai_generated
 def test_validate_auto_sidecar_skipped_with_output(
-    simple2_nwb: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    simple2_nwb: Path, tmp_path: Path, redirected_logdir: Path
 ) -> None:
     """--output suppresses auto-save sidecar."""
-    logdir = tmp_path / "logs"
-    logdir.mkdir()
-    monkeypatch.setattr("platformdirs.user_log_dir", lambda *a, **kw: str(logdir))
-
     outfile = tmp_path / "results.jsonl"
     r = CliRunner().invoke(main, ["validate", "-o", str(outfile), str(simple2_nwb)])
     assert r.exit_code == 1
     assert outfile.exists()
 
-    # No sidecar should exist
-    sidecars = list(logdir.glob("*_validation.jsonl"))
-    assert len(sidecars) == 0
+    assert not list(redirected_logdir.glob("*_validation.jsonl"))
 
 
 @pytest.mark.ai_generated
 def test_validate_auto_sidecar_skipped_with_load(
-    simple2_nwb: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    simple2_nwb: Path, tmp_path: Path, redirected_logdir: Path
 ) -> None:
     """--load suppresses auto-save sidecar."""
-    logdir = tmp_path / "logs"
-    logdir.mkdir()
-    monkeypatch.setattr("platformdirs.user_log_dir", lambda *a, **kw: str(logdir))
-
     # First produce a JSONL to load
     outfile = tmp_path / "input.jsonl"
     r = CliRunner().invoke(
@@ -833,29 +824,22 @@ def test_validate_auto_sidecar_skipped_with_load(
     assert outfile.exists()
 
     # Clear any sidecars from first run
-    for s in logdir.glob("*_validation.jsonl"):
+    for s in redirected_logdir.glob("*_validation.jsonl"):
         s.unlink()
 
     # Now --load it
     r = CliRunner().invoke(main, ["validate", "--load", str(outfile)])
     assert r.exit_code == 1
 
-    # No new sidecar should exist
-    sidecars = list(logdir.glob("*_validation.jsonl"))
-    assert len(sidecars) == 0
+    assert not list(redirected_logdir.glob("*_validation.jsonl"))
 
 
 @pytest.mark.ai_generated
 def test_validate_auto_sidecar_structured_stdout(
-    simple2_nwb: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    simple2_nwb: Path, redirected_logdir: Path
 ) -> None:
     """Structured format to stdout also auto-saves sidecar."""
-    logdir = tmp_path / "logs"
-    logdir.mkdir()
-    monkeypatch.setattr("platformdirs.user_log_dir", lambda *a, **kw: str(logdir))
-
     r = CliRunner().invoke(main, ["validate", "-f", "json", str(simple2_nwb)])
     assert r.exit_code == 1
 
-    sidecars = list(logdir.glob("*_validation.jsonl"))
-    assert len(sidecars) == 1
+    assert len(list(redirected_logdir.glob("*_validation.jsonl"))) == 1

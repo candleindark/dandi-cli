@@ -86,7 +86,7 @@ def load_validation_jsonl(*paths: str | Path) -> list[ValidationResult]:
                 version = data.get("record_version", "0")
                 if version != CURRENT_RECORD_VERSION:
                     lgr.warning(
-                        "%s:%d: record_version %r != current %r, " "loading anyway",
+                        "%s:%d: record_version %r != current %r, loading anyway",
                         p,
                         line_no,
                         version,

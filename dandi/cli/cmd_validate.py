@@ -28,6 +28,7 @@ class TruncationNotice:
 
     #: Number of validation results omitted from this group
     omitted_count: int
+    """Number of validation results omitted from this group."""
 
 
 STRUCTURED_FORMATS = ("json", "json_pp", "json_lines", "yaml")
@@ -179,8 +180,8 @@ def validate_bids(
     "-f",
     "output_format",
     help="Output format.",
-    type=click.Choice(["human", "json", "json_pp", "json_lines", "yaml"]),
-    default="human",
+    type=click.Choice(["text", "json", "json_pp", "json_lines", "yaml"]),
+    default="text",
 )
 @click.option(
     "--output",
@@ -220,7 +221,7 @@ def validate(
     ignore: str | None,
     grouping: tuple[str, ...],
     min_severity: str,
-    output_format: str = "human",
+    output_format: str = "text",
     output_file: str | None = None,
     summary: bool = False,
     max_per_group: int | None = None,
@@ -242,7 +243,7 @@ def validate(
     grouping = tuple(g for g in grouping if g != "none")
 
     # Auto-detect format from output file extension when --format not given
-    if output_file is not None and output_format == "human":
+    if output_file is not None and output_format == "text":
         detected = _format_from_ext(output_file)
         if detected is None:
             raise click.UsageError(
@@ -271,8 +272,8 @@ def validate(
 
     filtered = _filter_results(results, min_severity, ignore)
 
-    if output_format == "human":
-        _render_human(filtered, grouping, max_per_group=max_per_group)
+    if output_format == "text":
+        _render_text(filtered, grouping, max_per_group=max_per_group)
         if summary:
             _print_summary(filtered, sys.stdout)
     elif output_file is not None:
@@ -303,10 +304,9 @@ def validate(
         not load
         and not output_file
         and filtered
-        and hasattr(ctx, "obj")
-        and ctx.obj is not None
+        and (obj := getattr(ctx, "obj", None)) is not None
     ):
-        _auto_save_sidecar(filtered, ctx.obj.logfile)
+        _auto_save_sidecar(filtered, obj.logfile)
 
     _exit_if_errors(filtered)
 
@@ -356,16 +356,17 @@ def _get_formatter(
     output_format: str, out: IO[str] | None = None
 ) -> JSONFormatter | JSONLinesFormatter | YAMLFormatter:
     """Create a formatter for the given output format."""
-    if output_format == "json":
-        return JSONFormatter(out=out)
-    elif output_format == "json_pp":
-        return JSONFormatter(indent=2, out=out)
-    elif output_format == "json_lines":
-        return JSONLinesFormatter(out=out)
-    elif output_format == "yaml":
-        return YAMLFormatter(out=out)
-    else:
-        raise ValueError(f"Unknown format: {output_format}")
+    match output_format:
+        case "json":
+            return JSONFormatter(out=out)
+        case "json_pp":
+            return JSONFormatter(indent=2, out=out)
+        case "json_lines":
+            return JSONLinesFormatter(out=out)
+        case "yaml":
+            return YAMLFormatter(out=out)
+        case _:
+            raise ValueError(f"Unknown format: {output_format}")
 
 
 def _render_structured(
@@ -415,20 +416,21 @@ def _exit_if_errors(results: list[ValidationResult]) -> None:
 
 def _group_key(issue: ValidationResult, grouping: str) -> str:
     """Extract the grouping key from a ValidationResult."""
-    if grouping == "path":
-        return issue.purview or "(no path)"
-    elif grouping == "severity":
-        return issue.severity.name if issue.severity is not None else "NONE"
-    elif grouping == "id":
-        return issue.id
-    elif grouping == "validator":
-        return issue.origin.validator.value
-    elif grouping == "standard":
-        return issue.origin.standard.value if issue.origin.standard else "N/A"
-    elif grouping == "dandiset":
-        return str(issue.dandiset_path) if issue.dandiset_path else "(no dandiset)"
-    else:
-        raise NotImplementedError(f"Unsupported grouping: {grouping}")
+    match grouping:
+        case "path":
+            return issue.purview or "(no path)"
+        case "severity":
+            return issue.severity.name if issue.severity is not None else "NONE"
+        case "id":
+            return issue.id
+        case "validator":
+            return issue.origin.validator.value
+        case "standard":
+            return issue.origin.standard.value if issue.origin.standard else "N/A"
+        case "dandiset":
+            return str(issue.dandiset_path) if issue.dandiset_path else "(no dandiset)"
+        case _:
+            raise NotImplementedError(f"Unsupported grouping: {grouping}")
 
 
 # Recursive grouped type: either a nested OrderedDict or leaf list
@@ -491,12 +493,12 @@ def _serialize_grouped(grouped: GroupedResults | TruncatedResults) -> dict | lis
     return {k: _serialize_grouped(v) for k, v in grouped.items()}
 
 
-def _render_human(
+def _render_text(
     issues: list[ValidationResult],
     grouping: tuple[str, ...],
     max_per_group: int | None = None,
 ) -> None:
-    """Render validation results in human-readable colored format."""
+    """Render validation results in colored text format."""
     if not grouping:
         shown = issues
         omitted = 0
@@ -527,7 +529,7 @@ def _render_human(
         grouped: GroupedResults | TruncatedResults = _group_results(issues, grouping)
         if max_per_group is not None:
             grouped = _truncate_leaves(grouped, max_per_group)
-        _render_human_grouped(grouped, depth=0)
+        _render_text_grouped(grouped, depth=0)
 
     if not any(r.severity is not None and r.severity >= Severity.ERROR for r in issues):
         click.secho("No errors found.", fg="green")
@@ -543,7 +545,7 @@ def _count_leaves(grouped: GroupedResults | TruncatedResults) -> int:
     return sum(_count_leaves(v) for v in grouped.values())
 
 
-def _render_human_grouped(
+def _render_text_grouped(
     grouped: GroupedResults | TruncatedResults,
     depth: int,
 ) -> None:
@@ -576,7 +578,7 @@ def _render_human_grouped(
                 )
             )
             click.secho(header, fg=fg, bold=True)
-            _render_human_grouped(value, depth + 1)
+            _render_text_grouped(value, depth + 1)
 
 
 def _collect_all_issues(
@@ -595,10 +597,10 @@ def _process_issues(
     issues: list[ValidationResult],
     grouping: str | tuple[str, ...],
 ) -> None:
-    """Legacy wrapper: render human output and exit if errors."""
+    """Legacy wrapper: render text output and exit if errors."""
     if isinstance(grouping, str):
         grouping = (grouping,) if grouping != "none" else ()
-    _render_human(issues, grouping)
+    _render_text(issues, grouping)
     _exit_if_errors(issues)
 
 
