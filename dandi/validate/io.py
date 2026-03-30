@@ -96,10 +96,10 @@ def load_validation_jsonl(*paths: str | Path) -> list[ValidationResult]:
     return results
 
 
-def validation_sidecar_path(logfile: str | Path) -> Path:
-    """Derive the validation sidecar path from a logfile path.
+def validation_companion_path(logfile: str | Path) -> Path:
+    """Derive the validation companion path from a logfile path.
 
-    The sidecar is placed next to the logfile with ``_validation.jsonl``
+    The companion is placed next to the logfile with ``_validation.jsonl``
     appended to the stem.
 
     Parameters
@@ -110,7 +110,7 @@ def validation_sidecar_path(logfile: str | Path) -> Path:
     Returns
     -------
     Path
-        Path to the sidecar file.
+        Path to the companion file.
     """
     logfile = Path(logfile)
     return logfile.parent / (logfile.stem + "_validation.jsonl")

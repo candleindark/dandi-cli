@@ -97,7 +97,7 @@ def upload(
     """
     # Avoid heavy imports by importing with function:
     from ..upload import upload as upload_
-    from ..validate.io import validation_sidecar_path
+    from ..validate.io import validation_companion_path
 
     if jobs_pair is None:
         jobs = None
@@ -106,7 +106,9 @@ def upload(
         jobs, jobs_per_file = jobs_pair
 
     ctx = click.get_current_context()
-    sidecar = validation_sidecar_path(ctx.obj.logfile) if ctx.obj is not None else None
+    companion = (
+        validation_companion_path(ctx.obj.logfile) if ctx.obj is not None else None
+    )
 
     upload_(
         paths,
@@ -119,5 +121,5 @@ def upload(
         jobs=jobs,
         jobs_per_file=jobs_per_file,
         sync=sync,
-        validation_log_path=sidecar,
+        validation_log_path=companion,
     )

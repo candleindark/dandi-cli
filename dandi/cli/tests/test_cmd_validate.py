@@ -786,23 +786,25 @@ def test_truncate_leaves_unit() -> None:
 
 
 @pytest.mark.ai_generated
-def test_validate_auto_sidecar_text(simple2_nwb: Path, redirected_logdir: Path) -> None:
-    """Default text-format validate auto-saves sidecar next to log file."""
+def test_validate_auto_companion_text(
+    simple2_nwb: Path, redirected_logdir: Path
+) -> None:
+    """Default text-format validate auto-saves companion next to log file."""
 
     r = CliRunner().invoke(main, ["validate", str(simple2_nwb)])
     assert r.exit_code == 1  # NO_DANDISET_FOUND
 
-    assert len(sidecars := list(redirected_logdir.glob("*_validation.jsonl"))) == 1
+    assert len(companions := list(redirected_logdir.glob("*_validation.jsonl"))) == 1
 
     # Verify content is loadable
-    assert load_validation_jsonl(sidecars[0])
+    assert load_validation_jsonl(companions[0])
 
 
 @pytest.mark.ai_generated
-def test_validate_auto_sidecar_skipped_with_output(
+def test_validate_auto_companion_skipped_with_output(
     simple2_nwb: Path, tmp_path: Path, redirected_logdir: Path
 ) -> None:
-    """--output suppresses auto-save sidecar."""
+    """--output suppresses auto-save companion."""
     outfile = tmp_path / "results.jsonl"
     r = CliRunner().invoke(main, ["validate", "-o", str(outfile), str(simple2_nwb)])
     assert r.exit_code == 1
@@ -812,10 +814,10 @@ def test_validate_auto_sidecar_skipped_with_output(
 
 
 @pytest.mark.ai_generated
-def test_validate_auto_sidecar_skipped_with_load(
+def test_validate_auto_companion_skipped_with_load(
     simple2_nwb: Path, tmp_path: Path, redirected_logdir: Path
 ) -> None:
-    """--load suppresses auto-save sidecar."""
+    """--load suppresses auto-save companion."""
     # First produce a JSONL to load
     outfile = tmp_path / "input.jsonl"
     r = CliRunner().invoke(
@@ -823,7 +825,7 @@ def test_validate_auto_sidecar_skipped_with_load(
     )
     assert outfile.exists()
 
-    # Clear any sidecars from first run
+    # Clear any companions from first run
     for s in redirected_logdir.glob("*_validation.jsonl"):
         s.unlink()
 
@@ -835,10 +837,10 @@ def test_validate_auto_sidecar_skipped_with_load(
 
 
 @pytest.mark.ai_generated
-def test_validate_auto_sidecar_structured_stdout(
+def test_validate_auto_companion_structured_stdout(
     simple2_nwb: Path, redirected_logdir: Path
 ) -> None:
-    """Structured format to stdout also auto-saves sidecar."""
+    """Structured format to stdout also auto-saves companion."""
     r = CliRunner().invoke(main, ["validate", "-f", "json", str(simple2_nwb)])
     assert r.exit_code == 1
 

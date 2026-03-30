@@ -98,13 +98,13 @@ stage 2 and makes stage 3 work from either stage 1 (live) or stage 2 (loaded).
 ```
 Live validation:   validate() → [ValidationResult] → filter/group → render
                                        ↓
-                                  save(sidecar)
+                                  save(companion)
 
 Stored results:    load(files) → [ValidationResult] → filter/group → render
 
-Upload results:    upload() → [ValidationResult] → save(sidecar)
+Upload results:    upload() → [ValidationResult] → save(companion)
                                       ↓
-                    load(sidecar) → filter/group → render
+                    load(companion) → filter/group → render
 ```
 
 ### Uniform output across all formats — no envelope/non-envelope split
@@ -413,8 +413,8 @@ def load_validation_jsonl(*paths: str | Path) -> list[ValidationResult]:
     return results
 
 
-def validation_sidecar_path(logfile: str | Path) -> Path:
-    """Derive the validation sidecar path from a log file path.
+def validation_companion_path(logfile: str | Path) -> Path:
+    """Derive the validation companion path from a log file path.
 
     Given ``2026.03.19-14.30.00Z-12345.log``, returns
     ``2026.03.19-14.30.00Z-12345_validation.jsonl`` in the same directory.
@@ -489,9 +489,9 @@ The `validate()` CLI function collects all results into a list (already does
 for filtering), then dispatches to `display_errors()` (human) or structured
 formatter.
 
-### Phase 1b: File output (`-o/--output`) + auto-save sidecar
+### Phase 1b: File output (`-o/--output`) + auto-save companion
 
-**Goal**: Write results to file and auto-save a `_validation.jsonl` sidecar
+**Goal**: Write results to file and auto-save a `_validation.jsonl` companion
 alongside the `.log` file.
 
 #### CLI changes
@@ -512,11 +512,11 @@ Validation:
   `.yaml`/`.yml` → `yaml`). If extension is unrecognized, raise
   `click.UsageError`
 
-#### Auto-save sidecar
+#### Auto-save companion
 
-`dandi validate` writes a `_validation.jsonl` sidecar next to its log file
+`dandi validate` writes a `_validation.jsonl` companion next to its log file
 **by default** whenever there are results (any severity), regardless of
-`--format`. The sidecar is **skipped** only when:
+`--format`. The companion is **skipped** only when:
 - `--output` is specified (user already has structured results in a file)
 - `--load` is used (re-rendering existing results, not a fresh run)
 - No results are produced (clean validation)
@@ -525,21 +525,21 @@ Validation:
 # After collecting and filtering results, regardless of --format:
 if not load and not output_file and filtered:
     if hasattr(ctx, "obj") and ctx.obj is not None:
-        _auto_save_sidecar(filtered, ctx.obj.logfile)
+        _auto_save_companion(filtered, ctx.obj.logfile)
 ```
 
-**Important**: The sidecar must be written in ALL output format branches
+**Important**: The companion must be written in ALL output format branches
 (human, structured-to-stdout, structured-to-file), not just in the
-structured-to-stdout branch. A bug existed where the sidecar was only saved
+structured-to-stdout branch. A bug existed where the companion was only saved
 in the `else` branch (structured output to stdout), missing the most common
 case (human output, the default).
 
-The sidecar accumulation rate matches the already-existing `.log` files.
+The companion accumulation rate matches the already-existing `.log` files.
 
 The `validate` command's help text should mention this behavior so users
 know where to find saved results:
 
-> Validation results are automatically saved as a JSONL sidecar next to the
+> Validation results are automatically saved as a JSONL companion next to the
 > dandi-cli log file (unless --output is specified). Use ``dandi validate
 > --load <path>`` to re-render saved results with different options.
 
@@ -616,7 +616,7 @@ if load and paths:
 #### Example workflows
 
 ```bash
-# Run validation (auto-saves _validation.jsonl sidecar)
+# Run validation (auto-saves _validation.jsonl companion)
 dandi validate /data/dandiset001
 
 # Re-render the auto-saved results with different filters
@@ -636,7 +636,7 @@ Note: shell glob expansion is done by the shell, not by Click. `--load
 results/*.jsonl` works because the shell expands the glob into multiple
 `--load` arguments before the CLI sees them.
 
-### Phase 3: Upload validation sidecar — addresses #1753
+### Phase 3: Upload validation companion — addresses #1753
 
 **Goal**: Persist all validation results from `dandi upload` for later inspection.
 
@@ -659,7 +659,7 @@ function's validation happens inside a deeply nested generator (`_upload_item`).
 @click.option(
     "--validation-log",
     help="Path for writing validation results in JSONL format. "
-         "Defaults to a sidecar file next to the dandi-cli log file. "
+         "Defaults to a companion file next to the dandi-cli log file. "
          "Pass empty string to disable.",
     type=click.Path(dir_okay=False),
     default=None,
@@ -667,12 +667,12 @@ function's validation happens inside a deeply nested generator (`_upload_item`).
 ```
 
 Behavior:
-- **Not specified** (default): derive sidecar from `ctx.obj.logfile` via
-  `validation_sidecar_path()` — same as current implicit behavior
+- **Not specified** (default): derive companion from `ctx.obj.logfile` via
+  `validation_companion_path()` — same as current implicit behavior
 - **Explicit path**: use that path directly as `validation_log_path`
 - **Empty string `""`**: pass `None` to `upload()`, disabling validation logging
 
-This makes the validation sidecar feature visible in `dandi upload --help`
+This makes the validation companion feature visible in `dandi upload --help`
 and allows users to control where results are saved or opt out entirely.
 
 #### Python API parameter
@@ -696,15 +696,15 @@ resolved path (or `None`) to `upload()`.
 # In cmd_upload.py:
 if validation_log is not None:
     # Explicit --validation-log: use as-is (empty string → disable)
-    sidecar = Path(validation_log) if validation_log else None
+    companion = Path(validation_log) if validation_log else None
 else:
     # Default: derive from logfile
     ctx = click.get_current_context()
-    sidecar = None
+    companion = None
     if ctx.obj is not None:
-        sidecar = validation_sidecar_path(ctx.obj.logfile)
+        companion = validation_companion_path(ctx.obj.logfile)
 
-upload_(..., validation_log_path=sidecar)
+upload_(..., validation_log_path=companion)
 
 # In upload.py, inside the upload loop (already implemented):
 if validation_log_path is not None and validation_statuses:
@@ -726,11 +726,11 @@ Uses `append_validation_jsonl()` from `dandi/validate/io.py` — the file is
 opened in append mode for each batch, allowing incremental writes as files are
 validated during upload without holding all results in memory.
 
-#### Testing the upload validation sidecar
+#### Testing the upload validation companion
 
 See **Step 3** in the Implementation Order section for detailed test descriptions.
 
-Key insight: to test the default sidecar-next-to-logfile behavior, CLI tests
+Key insight: to test the default companion-next-to-logfile behavior, CLI tests
 must invoke `main` (the Click group), not `upload` directly, because `main()`
 sets up `ctx.obj.logfile`. Example:
 
@@ -866,17 +866,17 @@ cat results/*.jsonl | jq -s '
 - Reuse `formatter.py` infrastructure for JSON/YAML
 - Tests: CliRunner for each format, round-trip serialization
 
-### Step 1b: `--output` + auto-save sidecar
+### Step 1b: `--output` + auto-save companion
 
 - Add `--output` option, auto-detect format from extension (`.json` →
   `json_pp`, `.jsonl` → `json_lines`, `.yaml`/`.yml` → `yaml`); error
   if extension unrecognized and `--format` not given
 - Create `dandi/validate/io.py` with shared `write_validation_jsonl()`,
   `append_validation_jsonl()`, `load_validation_jsonl()`,
-  `validation_sidecar_path()`
-- Auto-save `_validation.jsonl` sidecar when results are non-empty and
+  `validation_companion_path()`
+- Auto-save `_validation.jsonl` companion when results are non-empty and
   `--output` is not specified (user already has their output file)
-- Tests: file creation, sidecar naming, empty-results no-op, sidecar
+- Tests: file creation, companion naming, empty-results no-op, companion
   suppressed when `--output` is used
 
 ### Step 1c: `--summary`
@@ -895,11 +895,11 @@ cat results/*.jsonl | jq -s '
 - Tests: load + filter, multi-file concatenation, mutual exclusivity error,
   forward-compatible loading of unknown versions
 
-### Step 3: Upload validation sidecar — addresses #1753
+### Step 3: Upload validation companion — addresses #1753
 
 #### 3a: Add `--validation-log` CLI option to `dandi upload`
 
-Currently the upload command writes a validation sidecar derived from
+Currently the upload command writes a validation companion derived from
 `ctx.obj.logfile` (the dandi-cli log file), but this is invisible to the
 user — there is no `--help` text about it, no way to control the path, and
 no way to disable it.
@@ -910,7 +910,7 @@ Add an explicit `--validation-log` option:
 @click.option(
     "--validation-log",
     help="Path for writing validation results in JSONL format. "
-         "Defaults to a sidecar file next to the dandi-cli log file. "
+         "Defaults to a companion file next to the dandi-cli log file. "
          "Pass empty string to disable.",
     type=click.Path(dir_okay=False),
     default=None,
@@ -918,7 +918,7 @@ Add an explicit `--validation-log` option:
 ```
 
 Behavior:
-- **Not specified** (default): derive sidecar from `ctx.obj.logfile` as today
+- **Not specified** (default): derive companion from `ctx.obj.logfile` as today
 - **Explicit path**: use that path directly
 - **Empty string `""`**: disable validation logging entirely
 
@@ -931,12 +931,12 @@ needing to go through `main()` to get a logfile.
 - CLI wrapper resolves the `--validation-log` option → path or `None` and
   passes it through
 
-#### 3c: Testing strategy for upload validation sidecar
+#### 3c: Testing strategy for upload validation companion
 
 **Problem**: Existing upload tests call `SampleDandiset.upload()` which
 invokes the Python API directly. The Python API's `validation_log_path`
 parameter works, but the real end-to-end flow — where `dandi upload`
-automatically derives the sidecar from its log file — is untested. Also,
+automatically derives the companion from its log file — is untested. Also,
 invoking `CliRunner().invoke(upload, ...)` on the subcommand alone does not
 set `ctx.obj.logfile` (that is done by `main()`).
 
@@ -944,14 +944,14 @@ set `ctx.obj.logfile` (that is done by `main()`).
 
 1. **Python API tests** (`dandi/tests/test_upload.py`): Extend existing
    tests that already exercise `SampleDandiset.upload()` to pass
-   `validation_log_path` and verify sidecar contents. These test the core
+   `validation_log_path` and verify companion contents. These test the core
    write logic without CLI overhead.
 
-   - `test_upload_bids_invalid`: pass `validation_log_path`, verify sidecar
+   - `test_upload_bids_invalid`: pass `validation_log_path`, verify companion
      exists with ERROR-level results after `UploadError`
    - `test_upload_invalid_metadata`: same pattern for NWB validation errors
-   - New `test_upload_validation_sidecar_clean`: upload valid NWB with
-     `validation_log_path`, verify sidecar absent or contains only
+   - New `test_upload_validation_companion_clean`: upload valid NWB with
+     `validation_log_path`, verify companion absent or contains only
      sub-ERROR results
 
 2. **CLI integration tests** (`dandi/cli/tests/test_cmd_upload.py` — new file):
@@ -959,11 +959,11 @@ set `ctx.obj.logfile` (that is done by `main()`).
    so `ctx.obj.logfile` is set. These require the docker-compose archive
    fixture. Tests verify:
 
-   - Default behavior: `_validation.jsonl` sidecar appears next to the log
-     file (derived via `validation_sidecar_path(ctx.obj.logfile)`)
-   - `--validation-log /path/to/custom.jsonl`: sidecar at specified path
-   - `--validation-log ""`: no sidecar written
-   - Sidecar content is loadable via `load_validation_jsonl()` and contains
+   - Default behavior: `_validation.jsonl` companion appears next to the log
+     file (derived via `validation_companion_path(ctx.obj.logfile)`)
+   - `--validation-log /path/to/custom.jsonl`: companion at specified path
+   - `--validation-log ""`: no companion written
+   - Companion content is loadable via `load_validation_jsonl()` and contains
      expected severity levels
 
    The log file path can be discovered from the CliRunner output (dandi
@@ -972,10 +972,10 @@ set `ctx.obj.logfile` (that is done by `main()`).
 
    ```python
    @pytest.mark.ai_generated
-   def test_upload_cli_validation_sidecar(
+   def test_upload_cli_validation_companion(
        new_dandiset: SampleDandiset, tmp_path: Path
    ) -> None:
-       """CLI upload creates validation sidecar next to log file."""
+       """CLI upload creates validation companion next to log file."""
        # ... set up dandiset with a file that has validation warnings/errors ...
        runner = CliRunner()
        r = runner.invoke(main, [
@@ -988,9 +988,9 @@ set `ctx.obj.logfile` (that is done by `main()`).
        log_files = sorted(logdir.glob("*.log"))
        assert log_files  # at least one log was created
        latest_log = log_files[-1]
-       sidecar = validation_sidecar_path(latest_log)
-       if sidecar.exists():
-           results = load_validation_jsonl(sidecar)
+       companion = validation_companion_path(latest_log)
+       if companion.exists():
+           results = load_validation_jsonl(companion)
            assert len(results) > 0
    ```
 
@@ -999,7 +999,7 @@ set `ctx.obj.logfile` (that is done by `main()`).
    def test_upload_cli_validation_log_option(
        new_dandiset: SampleDandiset, tmp_path: Path
    ) -> None:
-       """--validation-log sends sidecar to explicit path."""
+       """--validation-log sends companion to explicit path."""
        custom_log = tmp_path / "my-validation.jsonl"
        runner = CliRunner()
        r = runner.invoke(main, [
@@ -1019,7 +1019,7 @@ set `ctx.obj.logfile` (that is done by `main()`).
    def test_upload_cli_validation_log_disabled(
        new_dandiset: SampleDandiset, tmp_path: Path
    ) -> None:
-       """--validation-log '' disables sidecar."""
+       """--validation-log '' disables companion."""
        runner = CliRunner()
        r = runner.invoke(main, [
            "upload",
@@ -1050,7 +1050,7 @@ set `ctx.obj.logfile` (that is done by `main()`).
 - Exit code semantics preserved: non-zero if any ERROR-severity issues
 - When using `--format` other than `human`, colored output is suppressed
 - When using `--load`, exit code reflects loaded results
-- The auto-save sidecar is the only new side effect; it writes when there
+- The auto-save companion is the only new side effect; it writes when there
   are results and `--output` is not specified (for `validate`), or always
   (for `upload`). Follows the same lifecycle as the existing `.log` files
 - The `dandi/validate/` subpackage `__init__.py` re-exports all public API,
@@ -1067,9 +1067,9 @@ set `ctx.obj.logfile` (that is done by `main()`).
 | `_record_version` | Unit | `validate/tests/test_types.py` | Serialization includes field, loader handles missing/unknown |
 | `--load` | CLI unit | `cli/tests/test_cmd_validate.py` | Load from fixture files, multi-file concat, mutual exclusivity |
 | `--output` | CLI unit | `cli/tests/test_cmd_validate.py` | Verify file creation, content matches stdout format |
-| Sidecar auto-save (`validate`) | CLI unit | `cli/tests/test_cmd_validate.py` | Verify `_validation.jsonl` created next to mock logfile |
-| Upload sidecar (Python API) | Integration | `tests/test_upload.py` | Pass `validation_log_path` to `SampleDandiset.upload()`, verify file + contents |
-| Upload sidecar (CLI, default) | CLI integration | `cli/tests/test_cmd_upload.py` | `CliRunner().invoke(main, ["upload", ...])` — verify `_validation.jsonl` next to log file |
+| Companion auto-save (`validate`) | CLI unit | `cli/tests/test_cmd_validate.py` | Verify `_validation.jsonl` created next to mock logfile |
+| Upload companion (Python API) | Integration | `tests/test_upload.py` | Pass `validation_log_path` to `SampleDandiset.upload()`, verify file + contents |
+| Upload companion (CLI, default) | CLI integration | `cli/tests/test_cmd_upload.py` | `CliRunner().invoke(main, ["upload", ...])` — verify `_validation.jsonl` next to log file |
 | Upload `--validation-log` option | CLI integration | `cli/tests/test_cmd_upload.py` | Custom path, empty-string disable |
 | Extended grouping | CLI unit | `cli/tests/test_cmd_validate.py` | Each grouping value, section headers, counts |
 | Summary | CLI unit | `cli/tests/test_cmd_validate.py` | Verify counts match actual results |
@@ -1095,11 +1095,11 @@ All new tests marked `@pytest.mark.ai_generated`.
 | `dandi/validate/tests/test_types.py` | **Renamed** from `dandi/tests/test_validate_types.py` |
 | `dandi/validate/tests/test_io.py` | **New** — tests for I/O utilities |
 | `dandi/cli/cmd_validate.py` | Refactor + add `--format`, `--output`, `--load`, `--summary`, grouping extensions |
-| `dandi/upload.py` | Add `validation_log_path` parameter, write sidecar |
-| `dandi/cli/cmd_upload.py` | Add `--validation-log` option, pass sidecar path to `upload()` |
-| `dandi/cli/tests/test_cmd_upload.py` | **New** — CLI integration tests for upload validation sidecar |
+| `dandi/upload.py` | Add `validation_log_path` parameter, write companion |
+| `dandi/cli/cmd_upload.py` | Add `--validation-log` option, pass companion path to `upload()` |
+| `dandi/cli/tests/test_cmd_upload.py` | **New** — CLI integration tests for upload validation companion |
 | `dandi/cli/tests/test_cmd_validate.py` | Extend with format/load/output/summary tests |
-| `dandi/tests/test_upload.py` | Extend existing tests to pass `validation_log_path` and verify sidecar |
+| `dandi/tests/test_upload.py` | Extend existing tests to pass `validation_log_path` and verify companion |
 | `dandi/pynwb_utils.py` | Update imports |
 | `dandi/organize.py` | Update imports |
 | `dandi/files/bases.py` | Update imports |

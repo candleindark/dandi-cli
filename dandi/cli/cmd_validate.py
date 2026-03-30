@@ -16,7 +16,7 @@ from .base import devel_debug_option, devel_option, map_to_click_exceptions
 from .formatter import JSONFormatter, JSONLinesFormatter, YAMLFormatter
 from ..utils import pluralize
 from ..validate.core import validate as validate_
-from ..validate.io import validation_sidecar_path, write_validation_jsonl
+from ..validate.io import validation_companion_path, write_validation_jsonl
 from ..validate.types import Severity, ValidationResult
 
 lgr = logging.getLogger(__name__)
@@ -234,7 +234,7 @@ def validate(
 
     Exits with non-0 exit code if any file is not compliant.
 
-    Validation results are automatically saved as a JSONL sidecar next to the
+    Validation results are automatically saved as a JSONL companion next to the
     dandi-cli log file (unless --output is used or --load is active).  Use
     ``dandi validate --load <path>`` to re-render saved results later with
     different grouping, filtering, or format options.
@@ -269,6 +269,15 @@ def validate(
         results = load_validation_jsonl(*load)
     else:
         results = _collect_results(paths, schema, devel_debug, allow_any_path)
+        # Auto-save companion right after collection, before filtering — so
+        # all results are preserved regardless of display filters.
+        # Skip when writing to --output (user already gets structured output).
+        if (
+            not output_file
+            and results
+            and (obj := getattr(ctx, "obj", None)) is not None
+        ):
+            _auto_save_companion(results, obj.logfile)
 
     filtered = _filter_results(results, min_severity, ignore)
 
@@ -299,23 +308,14 @@ def validate(
         if summary:
             _print_summary(filtered, sys.stderr)
 
-    # Auto-save sidecar next to logfile (skip when loading or writing to --output file)
-    if (
-        not load
-        and not output_file
-        and filtered
-        and (obj := getattr(ctx, "obj", None)) is not None
-    ):
-        _auto_save_sidecar(filtered, obj.logfile)
-
     _exit_if_errors(filtered)
 
 
-def _auto_save_sidecar(results: list[ValidationResult], logfile: str) -> None:
-    """Write validation sidecar JSONL next to the logfile."""
-    sidecar = validation_sidecar_path(logfile)
-    write_validation_jsonl(results, sidecar)
-    lgr.info("Validation sidecar saved to %s", sidecar)
+def _auto_save_companion(results: list[ValidationResult], logfile: str) -> None:
+    """Write validation companion JSONL next to the logfile."""
+    companion = validation_companion_path(logfile)
+    write_validation_jsonl(results, companion)
+    lgr.info("Validation companion saved to %s", companion)
 
 
 def _print_summary(results: list[ValidationResult], out: IO[str]) -> None:

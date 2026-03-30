@@ -7,7 +7,7 @@ import pytest
 from dandi.validate.io import (
     append_validation_jsonl,
     load_validation_jsonl,
-    validation_sidecar_path,
+    validation_companion_path,
     write_validation_jsonl,
 )
 from dandi.validate.types import (
@@ -102,16 +102,16 @@ class TestWriteAndLoad:
 
 
 @pytest.mark.ai_generated
-class TestSidecarPath:
+class TestCompanionPath:
     def test_derives_from_logfile(self) -> None:
-        """Sidecar path is derived from logfile by appending _validation.jsonl."""
+        """Companion path is derived from logfile by appending _validation.jsonl."""
         logfile = Path("/var/log/dandi/2026.03.19-12.00.00Z-12345.log")
-        sidecar = validation_sidecar_path(logfile)
-        assert sidecar == Path(
+        companion = validation_companion_path(logfile)
+        assert companion == Path(
             "/var/log/dandi/2026.03.19-12.00.00Z-12345_validation.jsonl"
         )
 
     def test_string_input(self) -> None:
         """String input is accepted."""
-        sidecar = validation_sidecar_path("/tmp/test.log")
-        assert sidecar == Path("/tmp/test_validation.jsonl")
+        companion = validation_companion_path("/tmp/test.log")
+        assert companion == Path("/tmp/test_validation.jsonl")
