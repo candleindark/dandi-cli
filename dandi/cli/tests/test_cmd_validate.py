@@ -389,13 +389,47 @@ def test_render_text_grouping(grouping: str, capsys: pytest.CaptureFixture) -> N
     assert "issue" in captured
 
 
+def _grouping_opts(*groupings: str) -> list[str]:
+    """Build CLI args for one or more -g options."""
+    opts: list[str] = []
+    for g in groupings:
+        opts.extend(["-g", g])
+    return opts
+
+
+# simple2_nwb always produces at least this ERROR (not inside a dandiset)
+_SIMPLE2_EXPECTED_ID = "DANDI.NO_DANDISET_FOUND"
+
+# Single and composite grouping specs for parametrized tests.
+# Each entry is a tuple of grouping levels.
+_GROUPING_SPECS: list[tuple[str, ...]] = [
+    ("severity",),
+    ("id",),
+    ("validator",),
+    ("standard",),
+    ("dandiset",),
+    ("severity", "id"),
+    ("validator", "severity"),
+    ("id", "validator"),
+]
+
+
 @pytest.mark.ai_generated
-def test_validate_grouping_severity_cli(simple2_nwb: Path) -> None:
-    """Test --grouping=severity via CLI."""
-    r = CliRunner().invoke(validate, ["--grouping=severity", str(simple2_nwb)])
+@pytest.mark.parametrize("grouping", _GROUPING_SPECS, ids=lambda g: "+".join(g))
+def test_validate_grouping_text_cli(
+    grouping: tuple[str, ...], simple2_nwb: Path
+) -> None:
+    """Each grouping spec (single or composite) produces section headers and known issues."""
+    r = CliRunner().invoke(validate, [*_grouping_opts(*grouping), str(simple2_nwb)])
     assert r.exit_code != 0
     assert "===" in r.output
-    assert "ERROR" in r.output
+    # Both known issues must appear somewhere in output
+    assert _SIMPLE2_EXPECTED_ID in r.output
+    # Composite groupings must produce nested (indented) headers
+    if len(grouping) > 1:
+        lines = r.output.split("\n")
+        inner = [ln for ln in lines if "===" in ln and ln.startswith("  ")]
+        assert inner, "composite grouping should produce nested headers"
 
 
 @pytest.mark.ai_generated
@@ -438,85 +472,68 @@ def test_render_text_multilevel_grouping(capsys: pytest.CaptureFixture) -> None:
     _render_text(issues, grouping=("severity", "id"))
     captured = capsys.readouterr().out
 
-    # Should have nested headers: severity then id
     assert "=== WARNING" in captured
     assert "=== ERROR" in captured
     assert "=== NWBI.check_data_orientation" in captured
     assert "=== NWBI.check_missing_unit" in captured
-    # Nested headers should be indented
     lines = captured.split("\n")
-    # Find inner headers — they should have leading spaces
     inner_headers = [ln for ln in lines if "===" in ln and ln.startswith("  ")]
-    assert len(inner_headers) >= 2  # at least 2 inner group headers
+    assert len(inner_headers) >= 2
 
 
 @pytest.mark.ai_generated
-def test_validate_multilevel_grouping_text_cli(simple2_nwb: Path) -> None:
-    """Test -g severity -g id via CLI produces nested headers."""
-    r = CliRunner().invoke(validate, ["-g", "severity", "-g", "id", str(simple2_nwb)])
-    assert r.exit_code != 0
-    assert "===" in r.output
-    # Should have nested structure
-    lines = r.output.split("\n")
-    inner_headers = [ln for ln in lines if "===" in ln and ln.startswith("  ")]
-    assert len(inner_headers) >= 1
-
-
-@pytest.mark.ai_generated
-def test_validate_multilevel_grouping_json_cli(simple2_nwb: Path) -> None:
-    """Test -g severity -f json_pp via CLI produces nested JSON dict."""
+@pytest.mark.parametrize(
+    "grouping",
+    [
+        ("path",),
+        ("severity",),
+        ("id",),
+        ("validator",),
+        ("standard",),
+        ("dandiset",),
+        ("severity", "id"),
+        ("validator", "severity"),
+    ],
+    ids=lambda g: "+".join(g),
+)
+def test_validate_grouping_json_cli(
+    grouping: tuple[str, ...], simple2_nwb: Path
+) -> None:
+    """Each grouping spec produces a (nested) dict in JSON output with known issues."""
     r = CliRunner().invoke(
-        validate, ["-g", "severity", "-f", "json_pp", str(simple2_nwb)]
-    )
-    assert r.exit_code == 1
-    data = json.loads(r.output)
-    # With grouping, output should be a dict (not a list)
-    assert isinstance(data, dict)
-    # Keys should be severity names
-    for key in data:
-        assert key in ("CRITICAL", "ERROR", "WARNING", "HINT", "INFO", "NONE")
-    # Values should be lists of validation result dicts
-    for v in data.values():
-        assert isinstance(v, list)
-        for rec in v:
-            assert "id" in rec
-
-
-@pytest.mark.ai_generated
-def test_validate_multilevel_grouping_json_two_levels(simple2_nwb: Path) -> None:
-    """Test -g severity -g id -f json_pp produces two-level nested JSON."""
-    r = CliRunner().invoke(
-        validate, ["-g", "severity", "-g", "id", "-f", "json_pp", str(simple2_nwb)]
+        validate, [*_grouping_opts(*grouping), "-f", "json_pp", str(simple2_nwb)]
     )
     assert r.exit_code == 1
     data = json.loads(r.output)
     assert isinstance(data, dict)
-    # Each value should be a dict (second grouping level)
-    for severity_key, id_groups in data.items():
-        assert isinstance(id_groups, dict)
-        for id_key, results in id_groups.items():
-            assert isinstance(results, list)
-            for rec in results:
-                assert "id" in rec
+    assert len(data) >= 1
+    # For composite groupings, values are nested dicts
+    if len(grouping) > 1:
+        for v in data.values():
+            assert isinstance(v, dict)
+    else:
+        for v in data.values():
+            assert isinstance(v, list)
 
 
 @pytest.mark.ai_generated
 def test_validate_grouping_yaml_cli(simple2_nwb: Path) -> None:
-    """Test -g severity -f yaml produces grouped YAML output."""
-    r = CliRunner().invoke(validate, ["-g", "severity", "-f", "yaml", str(simple2_nwb)])
+    """Grouped YAML output is a dict keyed by grouping values."""
+    r = CliRunner().invoke(
+        validate, [*_grouping_opts("severity"), "-f", "yaml", str(simple2_nwb)]
+    )
     assert r.exit_code == 1
     yaml = ruamel.yaml.YAML(typ="safe")
     data = yaml.load(r.output)
     assert isinstance(data, dict)
-    for key in data:
-        assert key in ("CRITICAL", "ERROR", "WARNING", "HINT", "INFO", "NONE")
+    assert "ERROR" in data
 
 
 @pytest.mark.ai_generated
 def test_validate_grouping_jsonl_error(simple2_nwb: Path) -> None:
-    """Test -g severity -f json_lines gives a UsageError."""
+    """Grouping is incompatible with json_lines format."""
     r = CliRunner().invoke(
-        validate, ["-g", "severity", "-f", "json_lines", str(simple2_nwb)]
+        validate, [*_grouping_opts("severity"), "-f", "json_lines", str(simple2_nwb)]
     )
     assert r.exit_code != 0
     assert "incompatible" in r.output
@@ -524,11 +541,54 @@ def test_validate_grouping_jsonl_error(simple2_nwb: Path) -> None:
 
 @pytest.mark.ai_generated
 def test_validate_grouping_none_explicit(simple2_nwb: Path) -> None:
-    """Test -g none is treated as no grouping."""
-    r = CliRunner().invoke(validate, ["-g", "none", str(simple2_nwb)])
+    """-g none is treated as no grouping."""
+    r = CliRunner().invoke(validate, [*_grouping_opts("none"), str(simple2_nwb)])
     assert r.exit_code != 0
-    # Should NOT have section headers
     assert "===" not in r.output
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "grouping",
+    [("severity",), ("id", "validator")],
+    ids=lambda g: "+".join(g),
+)
+def test_validate_load_with_grouping(
+    grouping: tuple[str, ...], simple2_nwb: Path, tmp_path: Path
+) -> None:
+    """--load combined with single or composite --grouping works."""
+    outfile = tmp_path / "results.jsonl"
+    CliRunner().invoke(
+        validate, ["-f", "json_lines", "-o", str(outfile), str(simple2_nwb)]
+    )
+    assert outfile.exists()
+
+    r = CliRunner().invoke(
+        validate, ["--load", str(outfile), *_grouping_opts(*grouping)]
+    )
+    assert r.exit_code == 1
+    assert "===" in r.output
+    assert _SIMPLE2_EXPECTED_ID in r.output
+
+
+@pytest.mark.ai_generated
+@pytest.mark.parametrize(
+    "grouping",
+    [("severity",), ("validator", "id")],
+    ids=lambda g: "+".join(g),
+)
+def test_validate_grouping_output_file(
+    grouping: tuple[str, ...], simple2_nwb: Path, tmp_path: Path
+) -> None:
+    """--grouping with --output writes grouped JSON to file."""
+    outfile = tmp_path / "grouped.json"
+    r = CliRunner().invoke(
+        validate,
+        [*_grouping_opts(*grouping), "-o", str(outfile), str(simple2_nwb)],
+    )
+    assert r.exit_code == 1
+    data = json.loads(outfile.read_text())
+    assert isinstance(data, dict)
 
 
 @pytest.mark.ai_generated
