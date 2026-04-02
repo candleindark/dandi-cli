@@ -18,15 +18,19 @@ lgr = logging.getLogger(__name__)
 def write_validation_jsonl(
     results: list[ValidationResult],
     path: str | Path,
+    *,
+    append: bool = False,
 ) -> Path:
-    """Write validation results to a JSONL file, overwriting if it exists.
+    """Write validation results to a JSONL file.
 
     Parameters
     ----------
     results
         List of ValidationResult objects to write.
     path
-        File path to write to.
+        File path to write to.  Created if it does not exist.
+    append
+        If True, append to an existing file instead of overwriting.
 
     Returns
     -------
@@ -34,31 +38,11 @@ def write_validation_jsonl(
         The path written to (as a Path object).
     """
     path = Path(path)
-    with path.open("w") as f:
+    with path.open("a" if append else "w") as f:
         for r in results:
             f.write(r.model_dump_json())
             f.write("\n")
     return path
-
-
-def append_validation_jsonl(
-    results: list[ValidationResult],
-    path: str | Path,
-) -> None:
-    """Append validation results to a JSONL file.
-
-    Parameters
-    ----------
-    results
-        List of ValidationResult objects to append.
-    path
-        File path to append to.  Created if it does not exist.
-    """
-    path = Path(path)
-    with path.open("a") as f:
-        for r in results:
-            f.write(r.model_dump_json())
-            f.write("\n")
 
 
 def load_validation_jsonl(*paths: str | Path) -> list[ValidationResult]:

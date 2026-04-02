@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from dandi.validate.io import (
-    append_validation_jsonl,
     load_validation_jsonl,
     validation_companion_path,
     write_validation_jsonl,
@@ -57,7 +56,7 @@ class TestWriteAndLoad:
         """Append results to an existing JSONL file."""
         out = tmp_path / "results.jsonl"
         write_validation_jsonl([_make_result("A")], out)
-        append_validation_jsonl([_make_result("B")], out)
+        write_validation_jsonl([_make_result("B")], out, append=True)
 
         loaded = load_validation_jsonl(out)
         assert len(loaded) == 2
@@ -67,7 +66,7 @@ class TestWriteAndLoad:
     def test_append_creates_file(self, tmp_path: Path) -> None:
         """Append creates the file if it doesn't exist."""
         out = tmp_path / "new.jsonl"
-        append_validation_jsonl([_make_result("A")], out)
+        write_validation_jsonl([_make_result("A")], out, append=True)
         assert out.exists()
         loaded = load_validation_jsonl(out)
         assert len(loaded) == 1

@@ -302,10 +302,10 @@ def upload(
                     yield {"status": "pre-validating"}
                     validation_statuses = dfile.get_validation_errors()
                     if validation_log_path is not None and validation_statuses:
-                        from .validate.io import append_validation_jsonl
+                        from .validate.io import write_validation_jsonl
 
-                        append_validation_jsonl(
-                            validation_statuses, validation_log_path
+                        write_validation_jsonl(
+                            validation_statuses, validation_log_path, append=True
                         )
                     validation_errors = [
                         s
