@@ -48,6 +48,31 @@ instance as `dandi-api-local-docker-tests`.  See the note below on the
 `DANDI_DEVEL` environment variable, which is needed in order to expose the
 development command line options.
 
+## Code style conventions
+
+### Dataclass and attrs field documentation
+
+Document dataclass/attrs fields using `#:` comments above the field, not
+docstrings below.  This is the format Sphinx autodoc recognizes for attribute
+documentation:
+
+```python
+@dataclass
+class Movement:
+    """A movement/renaming of an asset"""
+
+    #: The asset's original path
+    src: AssetPath
+    #: The asset's destination path
+    dest: AssetPath
+    #: Whether to skip this operation because an asset already exists at the
+    #: destination
+    skip: bool = False
+```
+
+See [dandi.move.Movement on RTD](https://dandi.readthedocs.io/en/latest/modref/generated/dandi.move.html#dandi.move.Movement)
+for a rendered example.
+
 ## Environment variables
 
 - `DANDI_DEVEL` -- enables otherwise hidden command line options, such as
