@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum, IntEnum, auto, unique
+import logging
 from pathlib import Path
 from typing import Annotated, Any, Union
 
@@ -9,6 +10,8 @@ from pydantic.functional_serializers import PlainSerializer
 
 import dandi
 from dandi.utils import StrEnum
+
+lgr = logging.getLogger(__name__)
 
 
 @unique
@@ -220,6 +223,14 @@ class ValidationResult(BaseModel):
     # multiple files, like mismatch between .nii.gz header and .json sidecar
     path: Path | None = None
     path_regex: str | None = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.record_version != CURRENT_RECORD_VERSION:
+            lgr.warning(
+                "record_version %r != current %r, loading anyway",
+                self.record_version,
+                CURRENT_RECORD_VERSION,
+            )
 
     @property
     def purview(self) -> str | None:

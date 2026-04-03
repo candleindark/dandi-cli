@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from dandi.validate.io import (
+from dandi.validate._io import (
     load_validation_jsonl,
     validation_companion_path,
     write_validation_jsonl,
 )
-from dandi.validate.types import (
+from dandi.validate._types import (
     Origin,
     OriginType,
     Scope,
@@ -46,7 +46,7 @@ class TestWriteAndLoad:
         assert ret == out
         assert out.exists()
 
-        loaded = load_validation_jsonl(out)
+        loaded = load_validation_jsonl([out])
         assert len(loaded) == 2
         assert loaded[0].id == "A"
         assert loaded[1].id == "B"
@@ -58,7 +58,7 @@ class TestWriteAndLoad:
         write_validation_jsonl([_make_result("A")], out)
         write_validation_jsonl([_make_result("B")], out, append=True)
 
-        loaded = load_validation_jsonl(out)
+        loaded = load_validation_jsonl([out])
         assert len(loaded) == 2
         assert loaded[0].id == "A"
         assert loaded[1].id == "B"
@@ -68,14 +68,14 @@ class TestWriteAndLoad:
         out = tmp_path / "new.jsonl"
         write_validation_jsonl([_make_result("A")], out, append=True)
         assert out.exists()
-        loaded = load_validation_jsonl(out)
+        loaded = load_validation_jsonl([out])
         assert len(loaded) == 1
 
     def test_empty_file(self, tmp_path: Path) -> None:
         """Loading an empty file returns an empty list."""
         out = tmp_path / "empty.jsonl"
         write_validation_jsonl([], out)
-        loaded = load_validation_jsonl(out)
+        loaded = load_validation_jsonl([out])
         assert loaded == []
 
     def test_multi_file_load(self, tmp_path: Path) -> None:
@@ -85,7 +85,7 @@ class TestWriteAndLoad:
         write_validation_jsonl([_make_result("A")], f1)
         write_validation_jsonl([_make_result("B"), _make_result("C")], f2)
 
-        loaded = load_validation_jsonl(f1, f2)
+        loaded = load_validation_jsonl([f1, f2])
         assert len(loaded) == 3
         assert [r.id for r in loaded] == ["A", "B", "C"]
 
@@ -96,7 +96,7 @@ class TestWriteAndLoad:
         # Add blank lines
         with out.open("a") as f:
             f.write("\n\n")
-        loaded = load_validation_jsonl(out)
+        loaded = load_validation_jsonl([out])
         assert len(loaded) == 1
 
 

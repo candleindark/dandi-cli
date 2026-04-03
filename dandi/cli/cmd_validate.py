@@ -15,9 +15,9 @@ import click
 from .base import devel_debug_option, devel_option, map_to_click_exceptions
 from .formatter import JSONFormatter, JSONLinesFormatter, YAMLFormatter
 from ..utils import pluralize
-from ..validate.core import validate as validate_
-from ..validate.io import validation_companion_path, write_validation_jsonl
-from ..validate.types import Severity, ValidationResult
+from ..validate._core import validate as validate_
+from ..validate._io import validation_companion_path, write_validation_jsonl
+from ..validate._types import Severity, ValidationResult
 
 lgr = logging.getLogger(__name__)
 
@@ -264,9 +264,9 @@ def validate(
         raise click.UsageError("--load and positional paths are mutually exclusive.")
 
     if load:
-        from ..validate.io import load_validation_jsonl
+        from ..validate._io import load_validation_jsonl
 
-        results = load_validation_jsonl(*load)
+        results = load_validation_jsonl(load)
     else:
         results = _collect_results(paths, schema, devel_debug, allow_any_path)
         # Auto-save companion right after collection, before filtering — so

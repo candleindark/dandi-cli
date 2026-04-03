@@ -17,8 +17,8 @@ from ..cmd_validate import (
 )
 from ..command import main
 from ...tests.xfail import mark_xfail_windows_python313_posixsubprocess
-from ...validate.io import load_validation_jsonl
-from ...validate.types import (
+from ...validate._io import load_validation_jsonl
+from ...validate._types import (
     Origin,
     OriginType,
     Scope,
@@ -857,7 +857,7 @@ def test_validate_auto_companion_text(
     assert len(companions := list(redirected_logdir.glob("*_validation.jsonl"))) == 1
 
     # Verify content is loadable
-    assert load_validation_jsonl(companions[0])
+    assert load_validation_jsonl([companions[0]])
 
 
 @pytest.mark.ai_generated

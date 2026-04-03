@@ -13,7 +13,7 @@ from collections.abc import Iterator
 import os
 from pathlib import Path
 
-from .types import (
+from ._types import (
     ORIGIN_VALIDATION_DANDI_LAYOUT,
     Origin,
     OriginType,

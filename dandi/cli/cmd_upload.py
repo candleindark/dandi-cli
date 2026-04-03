@@ -97,7 +97,7 @@ def upload(
     """
     # Avoid heavy imports by importing with function:
     from ..upload import upload as upload_
-    from ..validate.io import validation_companion_path
+    from ..validate._io import validation_companion_path
 
     if jobs_pair is None:
         jobs = None

@@ -6,13 +6,10 @@ as JSONL (JSON Lines) files — one ValidationResult per line.
 
 from __future__ import annotations
 
-import json
-import logging
+from collections.abc import Iterable
 from pathlib import Path
 
-from .types import CURRENT_RECORD_VERSION, ValidationResult
-
-lgr = logging.getLogger(__name__)
+from ._types import ValidationResult
 
 
 def write_validation_jsonl(
@@ -45,13 +42,13 @@ def write_validation_jsonl(
     return path
 
 
-def load_validation_jsonl(*paths: str | Path) -> list[ValidationResult]:
+def load_validation_jsonl(paths: Iterable[str | Path]) -> list[ValidationResult]:
     """Load and concatenate validation results from one or more JSONL files.
 
     Parameters
     ----------
     paths
-        One or more file paths to load from.
+        Iterable of file paths to load from.
 
     Returns
     -------
@@ -62,21 +59,9 @@ def load_validation_jsonl(*paths: str | Path) -> list[ValidationResult]:
     for p in paths:
         p = Path(p)
         with p.open() as f:
-            for line_no, line in enumerate(f, 1):
-                line = line.strip()
-                if not line:
-                    continue
-                data = json.loads(line)
-                version = data.get("record_version", "0")
-                if version != CURRENT_RECORD_VERSION:
-                    lgr.warning(
-                        "%s:%d: record_version %r != current %r, loading anyway",
-                        p,
-                        line_no,
-                        version,
-                        CURRENT_RECORD_VERSION,
-                    )
-                results.append(ValidationResult.model_validate_json(line))
+            for line in f:
+                if line := line.strip():
+                    results.append(ValidationResult.model_validate_json(line))
     return results
 
 

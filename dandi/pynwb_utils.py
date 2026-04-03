@@ -42,7 +42,7 @@ from .consts import (
 )
 from .misctypes import Readable
 from .utils import get_module_version, is_url
-from .validate.types import (
+from .validate._types import (
     Origin,
     OriginType,
     Scope,

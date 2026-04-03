@@ -43,7 +43,7 @@ from .utils import (
     pluralize,
     yaml_load,
 )
-from .validate.types import (
+from .validate._types import (
     ORIGIN_VALIDATION_DANDI_LAYOUT,
     Scope,
     Severity,

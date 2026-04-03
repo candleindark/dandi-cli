@@ -49,7 +49,7 @@ from .misctypes import Digest
 from .support import pyout as pyouts
 from .support.pyout import naturalsize
 from .utils import ensure_datetime, path_is_subpath, pluralize
-from .validate.types import Severity
+from .validate._types import Severity
 
 
 def _check_dandidownload_paths(dfile: DandiFile) -> None:
@@ -302,7 +302,7 @@ def upload(
                     yield {"status": "pre-validating"}
                     validation_statuses = dfile.get_validation_errors()
                     if validation_log_path is not None and validation_statuses:
-                        from .validate.io import write_validation_jsonl
+                        from .validate._io import write_validation_jsonl
 
                         write_validation_jsonl(
                             validation_statuses, validation_log_path, append=True
