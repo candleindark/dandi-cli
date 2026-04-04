@@ -13,7 +13,7 @@ import warnings
 import click
 
 from .base import devel_debug_option, devel_option, map_to_click_exceptions
-from .formatter import JSONFormatter, JSONLinesFormatter, YAMLFormatter
+from .formatter import JSONFormatter, JSONLinesFormatter, TextFormatter, YAMLFormatter
 from ..utils import pluralize
 from ..validate._core import validate as validate_
 from ..validate._io import (
@@ -283,32 +283,19 @@ def validate(
 
     filtered = _filter_results(results, min_severity, ignore)
 
-    if output_format == "text":
-        _render_text(filtered, grouping, max_per_group=max_per_group)
-        if summary:
-            _print_summary(filtered, sys.stdout)
-    elif output_file is not None:
+    if output_file is not None:
         with open(output_file, "w") as fh:
-            _render_structured(
-                filtered,
-                output_format,
-                fh,
-                grouping,
-                max_per_group=max_per_group,
-            )
+            _render(filtered, output_format, fh, grouping, max_per_group=max_per_group)
         lgr.info("Validation output written to %s", output_file)
         if summary:
             _print_summary(filtered, sys.stderr)
     else:
-        _render_structured(
-            filtered,
-            output_format,
-            sys.stdout,
-            grouping,
-            max_per_group=max_per_group,
+        _render(
+            filtered, output_format, sys.stdout, grouping, max_per_group=max_per_group
         )
         if summary:
-            _print_summary(filtered, sys.stderr)
+            summary_out = sys.stdout if output_format == "text" else sys.stderr
+            _print_summary(filtered, summary_out)
 
     _exit_if_errors(filtered)
 
@@ -356,9 +343,11 @@ def _print_summary(results: list[ValidationResult], out: IO[str]) -> None:
 
 def _get_formatter(
     output_format: str, out: IO[str] | None = None
-) -> JSONFormatter | JSONLinesFormatter | YAMLFormatter:
+) -> JSONFormatter | JSONLinesFormatter | TextFormatter | YAMLFormatter:
     """Create a formatter for the given output format."""
     match output_format:
+        case "text":
+            return TextFormatter(out=out)
         case "json":
             return JSONFormatter(out=out)
         case "json_pp":
@@ -371,43 +360,85 @@ def _get_formatter(
             raise ValueError(f"Unknown format: {output_format}")
 
 
-def _render_structured(
+def _render(
     results: list[ValidationResult],
     output_format: str,
     out: IO[str],
     grouping: tuple[str, ...] = (),
     max_per_group: int | None = None,
 ) -> None:
-    """Render validation results in a structured format."""
+    """Render validation results in the given format.
+
+    Handles both text and structured (JSON/JSONL/YAML) formats, with
+    optional grouping and truncation.
+    """
+    is_text = output_format == "text"
+
     if grouping:
-        # Grouped output: build nested dict, serialize directly
         grouped: GroupedResults | TruncatedResults = _group_results(results, grouping)
         if max_per_group is not None:
             grouped = _truncate_leaves(grouped, max_per_group)
-        data = _serialize_grouped(grouped)
-        if output_format in ("json", "json_pp"):
-            indent = 2 if output_format == "json_pp" else None
-            json_mod.dump(data, out, indent=indent, sort_keys=True, default=str)
-            out.write("\n")
-        elif output_format == "yaml":
-            import ruamel.yaml
-
-            yaml = ruamel.yaml.YAML(typ="safe")
-            yaml.default_flow_style = False
-            yaml.dump(data, out)
+        if is_text:
+            # Text grouped output uses colored section headers
+            if grouping == ("path",):
+                # Legacy path grouping: per-path display_errors
+                purviews = list(set(i.purview for i in results))
+                for purview in purviews:
+                    applies_to = [i for i in results if purview == i.purview]
+                    display_errors(
+                        [purview],
+                        [i.id for i in applies_to],
+                        cast("list[Severity]", [i.severity for i in applies_to]),
+                        [i.message for i in applies_to],
+                    )
+            else:
+                _render_text_grouped(grouped, depth=0)
+            if not any(
+                r.severity is not None and r.severity >= Severity.ERROR for r in results
+            ):
+                click.secho("No errors found.", fg="green")
         else:
-            raise ValueError(f"Unsupported format for grouped output: {output_format}")
+            # Structured grouped output: nested dict
+            data = _serialize_grouped(grouped)
+            if output_format in ("json", "json_pp"):
+                indent = 2 if output_format == "json_pp" else None
+                json_mod.dump(data, out, indent=indent, sort_keys=True, default=str)
+                out.write("\n")
+            elif output_format == "yaml":
+                import ruamel.yaml
+
+                yaml = ruamel.yaml.YAML(typ="safe")
+                yaml.default_flow_style = False
+                yaml.dump(data, out)
+            else:
+                raise ValueError(
+                    f"Unsupported format for grouped output: {output_format}"
+                )
     else:
-        items: list[dict] = [r.model_dump(mode="json") for r in results]
-        if max_per_group is not None and len(items) > max_per_group:
-            items = items[:max_per_group]
-            items.append(
-                {"_truncated": True, "omitted_count": len(results) - max_per_group}
-            )
-        formatter = _get_formatter(output_format, out=out)
-        with formatter:
-            for item in items:
-                formatter(item)
+        # Ungrouped: use formatter per-record
+        if is_text:
+            shown = results
+            omitted = 0
+            if max_per_group is not None and len(results) > max_per_group:
+                shown = results[:max_per_group]
+                omitted = len(results) - max_per_group
+            formatter = _get_formatter(output_format, out=out)
+            with formatter:
+                for r in shown:
+                    formatter(r)
+            if omitted:
+                click.secho(f"... and {pluralize(omitted, 'more issue')}", fg="cyan")
+        else:
+            items: list[dict] = [r.model_dump(mode="json") for r in results]
+            if max_per_group is not None and len(items) > max_per_group:
+                items = items[:max_per_group]
+                items.append(
+                    {"_truncated": True, "omitted_count": len(results) - max_per_group}
+                )
+            formatter = _get_formatter(output_format, out=out)
+            with formatter:
+                for item in items:
+                    formatter(item)
 
 
 def _exit_if_errors(results: list[ValidationResult]) -> None:
@@ -500,41 +531,12 @@ def _render_text(
     grouping: tuple[str, ...],
     max_per_group: int | None = None,
 ) -> None:
-    """Render validation results in colored text format."""
-    if not grouping:
-        shown = issues
-        omitted = 0
-        if max_per_group is not None and len(issues) > max_per_group:
-            shown = issues[:max_per_group]
-            omitted = len(issues) - max_per_group
-        purviews = [i.purview for i in shown]
-        display_errors(
-            purviews,
-            [i.id for i in shown],
-            cast("list[Severity]", [i.severity for i in shown]),
-            [i.message for i in shown],
-        )
-        if omitted:
-            click.secho(f"... and {pluralize(omitted, 'more issue')}", fg="cyan")
-    elif grouping == ("path",):
-        # Legacy path grouping: de-duplicate purviews, show per-path
-        purviews = list(set(i.purview for i in issues))
-        for purview in purviews:
-            applies_to = [i for i in issues if purview == i.purview]
-            display_errors(
-                [purview],
-                [i.id for i in applies_to],
-                cast("list[Severity]", [i.severity for i in applies_to]),
-                [i.message for i in applies_to],
-            )
-    else:
-        grouped: GroupedResults | TruncatedResults = _group_results(issues, grouping)
-        if max_per_group is not None:
-            grouped = _truncate_leaves(grouped, max_per_group)
-        _render_text_grouped(grouped, depth=0)
+    """Render validation results in colored text format.
 
-    if not any(r.severity is not None and r.severity >= Severity.ERROR for r in issues):
-        click.secho("No errors found.", fg="green")
+    Thin wrapper around ``_render`` for backwards compatibility with tests
+    and ``_process_issues``.
+    """
+    _render(issues, "text", sys.stdout, grouping, max_per_group=max_per_group)
 
 
 def _count_leaves(grouped: GroupedResults | TruncatedResults) -> int:
