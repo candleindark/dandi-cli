@@ -484,16 +484,7 @@ def test_render_text_multilevel_grouping(capsys: pytest.CaptureFixture) -> None:
 @pytest.mark.ai_generated
 @pytest.mark.parametrize(
     "grouping",
-    [
-        ("path",),
-        ("severity",),
-        ("id",),
-        ("validator",),
-        ("standard",),
-        ("dandiset",),
-        ("severity", "id"),
-        ("validator", "severity"),
-    ],
+    [("path",), *_GROUPING_SPECS],
     ids=lambda g: "+".join(g),
 )
 def test_validate_grouping_json_cli(
