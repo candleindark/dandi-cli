@@ -2,6 +2,40 @@
 
 ## Development environment
 
+### Using hatch
+
+This project's hatch environments use [uv](https://github.com/astral-sh/uv)
+as the installer, which allows for significant improvements in environment
+setup speed. Each environment corresponds to a project
+extra (e.g., `test`, `style`, `tools`). To enter a shell in an environment:
+
+```
+hatch shell <env-name>
+```
+
+For example, to enter the `test` environment:
+
+```
+hatch shell test
+```
+
+To remove environments so they can be recreated from scratch:
+
+```
+hatch env remove <env-name>  # remove a specific environment
+```
+
+or to remove all environments at once:
+
+```
+hatch env prune
+```
+
+Refer to [hatch's documentation](https://hatch.pypa.io/latest/cli/reference/)
+for full CLI usage.
+
+### Using a virtualenv
+
 Assuming that you have `python3` (and virtualenv) installed, the fastest
 way to establish yourself a development environment (or a sample deployment),
 is via virtualenv:
@@ -23,7 +57,17 @@ pre-commit install
 
 ### Running tests locally
 
-You can run all tests locally by running `tox` (you can install `tox` running `pip install tox`):
+With hatch:
+```
+hatch run test:run
+```
+
+To run a specific test:
+```
+hatch run test:run dandi/tests/test_file.py::test_function -v
+```
+
+Alternatively, with `tox` (install via `pip install tox`):
 ```
 tox -e py3
 ```
