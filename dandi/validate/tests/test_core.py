@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest
 
-from ..core import validate
-from ..types import (
+from .._core import validate
+from .._types import (
     Origin,
     OriginType,
     Scope,

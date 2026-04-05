@@ -6,17 +6,23 @@ This subpackage provides validation functionality for dandisets, including:
 - File layout and organization validation
 - Metadata completeness checking
 
-Submodules:
-- core: Main validation functions (validate, validate_bids)
-- types: Data types and models (ValidationResult, Origin, Severity, etc.)
-- io: JSONL read/write utilities for validation results
+Private submodules:
+- _core: Main validation functions (validate, validate_bids)
+- _types: Data types and models (ValidationResult, Origin, Severity, etc.)
+- _io: JSONL read/write utilities for validation results
 
-Note: core is NOT eagerly imported here to avoid circular imports
-(core → dandi.files → dandi.validate.types → dandi.validate.__init__).
-Import from dandi.validate.core directly for validate/validate_bids.
+Note: _core is NOT eagerly imported here to avoid circular imports
+(_core → dandi.files → dandi.validate._types → dandi.validate.__init__).
+Import from dandi.validate._core directly for validate/validate_bids.
 """
 
-from .types import (
+from ._io import (
+    load_validation_jsonl,
+    validation_companion_path,
+    write_validation_jsonl,
+)
+from ._types import (
+    CURRENT_RECORD_VERSION,
     ORIGIN_INTERNAL_DANDI,
     ORIGIN_VALIDATION_DANDI,
     ORIGIN_VALIDATION_DANDI_LAYOUT,
@@ -32,6 +38,7 @@ from .types import (
 )
 
 __all__ = [
+    "CURRENT_RECORD_VERSION",
     "ORIGIN_INTERNAL_DANDI",
     "ORIGIN_VALIDATION_DANDI",
     "ORIGIN_VALIDATION_DANDI_LAYOUT",
@@ -44,4 +51,7 @@ __all__ = [
     "Standard",
     "ValidationResult",
     "Validator",
+    "load_validation_jsonl",
+    "validation_companion_path",
+    "write_validation_jsonl",
 ]

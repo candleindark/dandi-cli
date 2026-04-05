@@ -47,7 +47,7 @@ from dandi.utils import (
 )
 
 from .bases import LocalDirectoryAsset
-from ..validate.types import (
+from ..validate._types import (
     ORIGIN_VALIDATION_DANDI_ZARR,
     Origin,
     OriginType,

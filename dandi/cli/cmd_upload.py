@@ -96,7 +96,8 @@ def upload(
     can point to specific files you would like to validate and have uploaded.
     """
     # Avoid heavy imports by importing with function:
-    from ..upload import upload
+    from ..upload import upload as upload_
+    from ..validate._io import validation_companion_path
 
     if jobs_pair is None:
         jobs = None
@@ -104,7 +105,12 @@ def upload(
     else:
         jobs, jobs_per_file = jobs_pair
 
-    upload(
+    ctx = click.get_current_context()
+    companion = (
+        validation_companion_path(ctx.obj.logfile) if ctx.obj is not None else None
+    )
+
+    upload_(
         paths,
         existing=existing,
         validation=validation,
@@ -115,4 +121,5 @@ def upload(
         jobs=jobs,
         jobs_per_file=jobs_per_file,
         sync=sync,
+        validation_log_path=companion,
     )
